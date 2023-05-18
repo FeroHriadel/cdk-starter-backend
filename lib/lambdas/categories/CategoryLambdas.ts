@@ -7,7 +7,7 @@ import { join } from "path";
 
 
 
-interface LambdasPaths { createPath: string; readPath: string, updatePath: string };
+interface LambdasPaths { createPath: string; readPath: string; updatePath: string; deletePath: string; };
 
 
 
@@ -23,10 +23,12 @@ export class CategoryLambdas {
     public createLambda: NodejsFunction;
     public readLambda: NodejsFunction;
     public updateLambda: NodejsFunction;
+    public deleteLambda: NodejsFunction;
 
     public createLambdaIntegration: LambdaIntegration;
     public readLambdaIntegration: LambdaIntegration;
     public updateLambdaIntegration: LambdaIntegration;
+    public deleteLambdaIntegration: LambdaIntegration;
 
 
 
@@ -69,12 +71,16 @@ export class CategoryLambdas {
         //update category lambda
         this.updateLambda = this.createSingleLambda(this.lambdasPaths.updatePath);
         this.updateLambdaIntegration = new LambdaIntegration(this.updateLambda);
+        //delete category lambda
+        this.deleteLambda = this.createSingleLambda(this.lambdasPaths.deletePath);
+        this.deleteLambdaIntegration = new LambdaIntegration(this.deleteLambda);
     }
 
     private grantTableRights() {
         this.table.grantReadWriteData(this.createLambda);
         this.table.grantReadData(this.readLambda);
         this.table.grantReadWriteData(this.updateLambda);
+        this.table.grantReadWriteData(this.deleteLambda);
     }
 
 }

@@ -49,7 +49,12 @@ export class CdkStarterStack extends cdk.Stack {
 
   //LAMBDAS
   // tagLambdas are in constructor done verbosely for explanation purposes
-  private categoryLambdas = new CategoryLambdas(this, this.categoriesTable, this.imagesBucket.bucket, {createPath: 'Create', readPath: 'Read', updatePath: 'Update'});
+  private categoryLambdas = new CategoryLambdas(
+    this,
+    this.categoriesTable,
+    this.imagesBucket.bucket,
+    {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'}
+  );
 
 
 
@@ -109,6 +114,7 @@ export class CdkStarterStack extends cdk.Stack {
     categoriesResource.addMethod('POST', this.categoryLambdas.createLambdaIntegration, optionsWithAuthorizer);
     categoriesResource.addMethod('GET', this.categoryLambdas.readLambdaIntegration);
     categoriesResource.addMethod('PUT', this.categoryLambdas.updateLambdaIntegration, optionsWithAuthorizer);
+    categoriesResource.addMethod('DELETE', this.categoryLambdas.deleteLambdaIntegration, optionsWithAuthorizer);
 
     
 

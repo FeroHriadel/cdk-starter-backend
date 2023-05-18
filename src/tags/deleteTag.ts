@@ -23,7 +23,8 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
 
         //delete tag (not checking if tag exists, speeds the response up a little)
         const tagId = event.pathParameters?.tagId;
-        await dynamodb.delete({TableName: process.env.TABLE_NAME!, Key: {tagId}}).promise();
+        await dynamodb.delete({ TableName: process.env.TABLE_NAME!, Key: {tagId} }).promise();
+        result.statusCode = 200;
         result.body = JSON.stringify({message: 'Tag deleted', ok: true});
         
     } catch (error) {
