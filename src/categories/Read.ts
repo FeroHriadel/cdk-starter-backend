@@ -55,12 +55,15 @@ async function findAll() {
     const response = await dynamodb.query({
         TableName: process.env.TABLE_NAME!,
         IndexName: 'nameSort',
+        KeyConditionExpression: '#type = :type',
         ExpressionAttributeNames: {'#type': 'type'},
         ExpressionAttributeValues: {':type': '#CATEGORY'}, //all categories have type = '#CATEGORY', so it will return all categories
         ScanIndexForward: true, //this tells dynamo to order asc (by sortIndex, which is `name` in this case)
     }).promise();
     console.log(`Query result is: `, response);
     categories = response.Items;
+    if (!Array.isArray(categories)) throw new Error('Fetching categories failed');
+    result.statusCode = 200;
     return JSON.stringify(categories);
 }
 

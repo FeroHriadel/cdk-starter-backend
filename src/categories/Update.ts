@@ -33,7 +33,7 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         if (!body.name || typeof body.name !== 'string' || !body.name.length) { result.statusCode = 400; throw new Error('Category name (string) is required');}
 
         //check if category exists
-        console.log('Checking if tag exists...');
+        console.log('Checking if category exists...');
         let existingCategory;
         const existingCategoryQuery = await dynamodb.get({TableName: process.env.TABLE_NAME!, Key: {categoryId: body.categoryId}}).promise();
         existingCategory = existingCategoryQuery.Item;
@@ -53,16 +53,25 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
             }
         }).promise();
 
-        if (checkCategories && checkCategories.Items && checkCategories.Items[0]) { result.statusCode = 403; throw new Error(`Category with name ${body.name} already exists`) }
+        if (
+            checkCategories.Items 
+            && 
+            checkCategories.Items[0] 
+            && 
+            checkCategories.Items[0]
+            &&
+            checkCategories.Items[0].categoryId !== body.categoryId
+        ) { result.statusCode = 403; throw new Error(`Category with name ${body.name} already exists`) }
 
         //update category
         console.log('Updating category...')
+        const now = new Date();
         const params = {
             TableName: process.env.TABLE_NAME!,
             Key: {categoryId: body.categoryId},
-            UpdateExpression: 'set #name = :name, #image = :image',
-            ExpressionAttributeNames: {'#name': 'name', '#image': 'image'},
-            ExpressionAttributeValues: {':name': body.name, ':imageUrl': body.image || undefined},
+            UpdateExpression: 'set #name = :name, #image = :image, #description = :description, #updatedAt = :updatedAt',
+            ExpressionAttributeNames: {'#name': 'name', '#image': 'image', '#description': 'description', '#updatedAt': 'updatedAt'},
+            ExpressionAttributeValues: {':name': body.name, ':image': body.image || '', ':description': body.description || '', ':updatedAt': now.toISOString()},
             ReturnValues: 'ALL_NEW'
         };
 
@@ -74,10 +83,10 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
 
         //delete old image from bucket (unless user uploaded the same file)
         if (existingCategory.image && existingCategory.image !== '' && existingCategory.image !== body.image) {
-            console.log('Deleting old image from bucket');
+            console.log('Deleting old image from bucket. Deleting file: ', existingCategory.image.split('.com/')[1]);
             await s3.deleteObject({
                 Bucket: process.env.BUCKET_NAME!, 
-                Key: body.image.split('.com/')[1]
+                Key: existingCategory.image.split('.com/')[1]
             }).promise()
         }
 

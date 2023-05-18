@@ -108,7 +108,7 @@ export class CdkStarterStack extends cdk.Stack {
     const categoriesResource = this.api.root.addResource('categories');
     categoriesResource.addMethod('POST', this.categoryLambdas.createLambdaIntegration, optionsWithAuthorizer);
     categoriesResource.addMethod('GET', this.categoryLambdas.readLambdaIntegration);
-    categoriesResource.addMethod('PUT', this.categoryLambdas.readLambdaIntegration, optionsWithAuthorizer);
+    categoriesResource.addMethod('PUT', this.categoryLambdas.updateLambdaIntegration, optionsWithAuthorizer);
 
     
 

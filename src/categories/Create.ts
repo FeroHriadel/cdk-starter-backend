@@ -57,8 +57,8 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
             createdAt: now.toISOString(),
             updatedAt: now.toISOString(),
             name: body.name,
-            description: body.description ? body.description : undefined,
-            image: body.image ? body.image : undefined,
+            description: body.description ? body.description : '',
+            image: body.image ? body.image : '',
             type: '#CATEGORY' //this will be the partition key in `nameSort` GSI => all categories have the same value so we can satisfy the `all queries must have an equality condition` and still return all categories ordered by name 
         };
 
