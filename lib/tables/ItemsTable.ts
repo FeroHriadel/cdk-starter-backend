@@ -27,15 +27,27 @@ export class ItemsTable {
           });
     }
 
-    private addSecondaryIndexes() {
-        this.table.addGlobalSecondaryIndex({
-            indexName: 'category',
-            partitionKey: { name: 'category', type: AttributeType.STRING }
-          });
-        this.table.addGlobalSecondaryIndex({
-            indexName: 'name',
-            partitionKey: { name: 'name', type: AttributeType.STRING }
-          });
+    private addSecondaryIndexes() {      
+        //so we can order items by name
+        this.table.addGlobalSecondaryIndex({ //this will be a composite key (with PK and SK)
+            indexName: 'nameSort',
+            partitionKey: { name: 'type', type: AttributeType.STRING },
+            sortKey: { name: 'name', type: AttributeType.STRING }
+        }); //all items have `type: #ITEM`. When making a query, you must specify equality condition. But you want all the items! So your condition will be: `:item = '#ITEM` (which all items have) and it will return all items ordered by name (`ScanIndexForward: true` in query will do that)
+        
+        //so we can order by updatedAt
+        this.table.addGlobalSecondaryIndex({ //this will be a composite key (with PK and SK)
+            indexName: 'dateSort',
+            partitionKey: { name: 'type', type: AttributeType.STRING },
+            sortKey: { name: 'updatedAt', type: AttributeType.STRING }
+        });
+
+        //so we can search items by category and order by name
+        this.table.addGlobalSecondaryIndex({ //this will be a composite key (with PK and SK)
+            indexName: 'categorySort',
+            partitionKey: { name: 'category', type: AttributeType.STRING },
+            sortKey: { name: 'name', type: AttributeType.STRING }
+        });
     }
 
 }

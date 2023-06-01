@@ -16,6 +16,8 @@ import { UpdateTagLambda } from './lambdas/tags/updateTagLambda';
 import { DeleteTagLambda } from './lambdas/tags/deleteTagLambda';
 import { GetSignedUrlLambda } from './lambdas/getSignedUrl';
 import { CategoryLambdas } from './lambdas/categories/CategoryLambdas';
+import { ItemLambdas } from './lambdas/items/ItemLambdas';
+import { ItemsTable } from './tables/ItemsTable';
 
 
 
@@ -42,19 +44,29 @@ export class CdkStarterStack extends cdk.Stack {
   //TABLES
   private tagsTable = new TagsTable(this).table;
   private categoriesTable = new CategoriesTable(this).table;
-  //private itemsTable = new ItemsTable(this).table;
+  private itemsTable = new ItemsTable(this).table;
 
   //AUTHORIZER
   private authorizer: AppAuthorizer;
 
   //LAMBDAS
-  // tagLambdas are in constructor done verbosely for explanation purposes
+    // tagLambdas are in constructor done verbosely for explanation purposes
   private categoryLambdas = new CategoryLambdas(
     this,
     this.categoriesTable,
     this.imagesBucket.bucket,
     {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'}
   );
+  private itemLambdas = new ItemLambdas(
+    this,
+    this.itemsTable,
+    this.categoriesTable,
+    this.tagsTable,
+    this.imagesBucket.bucket,
+    {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'}
+  )
+
+  
 
 
 
@@ -69,7 +81,7 @@ export class CdkStarterStack extends cdk.Stack {
     } //attach to lambda like this: createItemLambdaResource.addMethod('POST', createItemLambdaIntegration, optionsWithAuthorizer);
 
     //LAMBDAS
-    //tags lambdas - how I like it (but very verbose)
+      //tags lambdas - verbous for explanation purposes
     const createTagLambdaInitialization = new CreateTagLambda(this); //init lambda
     const createTagLambda = createTagLambdaInitialization.lambda, createTagLambdaIntegration = createTagLambdaInitialization.lambdaIntegration; //get lambda & integration from init above
     this.tagsTable.grantReadWriteData(createTagLambda); //give lambda access rights to tagsTable
@@ -116,14 +128,13 @@ export class CdkStarterStack extends cdk.Stack {
     categoriesResource.addMethod('PUT', this.categoryLambdas.updateLambdaIntegration, optionsWithAuthorizer);
     categoriesResource.addMethod('DELETE', this.categoryLambdas.deleteLambdaIntegration, optionsWithAuthorizer);
 
+    //items lambdas
+    const itemsResource = this.api.root.addResource('items');
+    itemsResource.addMethod('POST', this.itemLambdas.createLambdaIntegration, optionsWithAuthorizer);
+    itemsResource.addMethod('GET', this.itemLambdas.readLambdaIntegration);
+    itemsResource.addMethod('PUT', this.itemLambdas.updateLambdaIntegration, optionsWithAuthorizer);
+    itemsResource.addMethod('DELETE', this.itemLambdas.deleteLambdaIntegration, optionsWithAuthorizer);
+
     
-
-    //items lambdas:
-    // const createItemLambdaInitialization = new CreateItemLambda(this); //init lambda
-    // const createItemLambda = createItemLambdaInitialization.lambda, createLambdaIntegration = createItemLambdaInitialization.lambdaIntegration; //get lambda & integration from init above
-    // this.itemsTable.grantReadWriteData(createItemLambda); //give lambda access rights to ItemsTable
-    // const createItemLambdaResource = this.api.root.addResource('createitem'); //adds a path: `/createitem` to api gateway
-    // createItemLambdaResource.addMethod('POST', createLambdaIntegration, optionsWithAuthorizer); //add 'POST' method to `/createitem` and assign createLambda to handle it
-
   }
 }
