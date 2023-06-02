@@ -7,7 +7,7 @@ const dynamodb = new DynamoDB.DocumentClient();
 
 
 async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
-    const result: APIGatewayProxyResult = {statusCode: 500, body: 'Body not created yet'};
+    const result: APIGatewayProxyResult = {statusCode: 500, body: 'Body not created yet', headers: {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Credentials': true}};
 
     try {
         //check body
@@ -22,8 +22,8 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         if (!createdItem.description) createdItem.description = '';
         if (!createdItem.category) { result.statusCode = 400; throw new Error('Category is required') };
         if (!createdItem.tags) createdItem.tags = [];
-        if (!createdItem.price) createdItem.price = '0';
-        if (!createdItem.quantity) createdItem.quantity = '0';
+        if (!createdItem.price || createdItem.price === '') createdItem.price = '0';
+        if (!createdItem.quantity || createdItem.quantity === '') createdItem.quantity = '0';
         let now = new Date();
         createdItem.createdAt = now.toISOString();
         createdItem.updatedAt = now.toISOString();
@@ -51,8 +51,10 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
 
         //save item to db
         console.log('saving item to db....');
-        await dynamodb.put({TableName: process.env.TABLE_NAME!, Item: createdItem}).promise();
+        let savedItem = await dynamodb.put({TableName: process.env.TABLE_NAME!, Item: createdItem}).promise();
+        if (!savedItem) { throw new Error('Saving item failed') };
         result.body = JSON.stringify(createdItem);
+        result.statusCode = 201;
         
     } catch (error) {
         console.error(error);
