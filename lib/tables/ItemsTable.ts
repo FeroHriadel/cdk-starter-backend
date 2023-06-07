@@ -42,7 +42,7 @@ export class ItemsTable {
             sortKey: { name: 'updatedAt', type: AttributeType.STRING }
         });
 
-        //so we can search items by category and order by name
+        //so we can search items by category and order by name (also we can (and will) use nameSort with FilterExpression: contains(#category, :category) so I needn't have bothered here)
         this.table.addGlobalSecondaryIndex({ //this will be a composite key (with PK and SK)
             indexName: 'categorySort',
             partitionKey: { name: 'category', type: AttributeType.STRING },

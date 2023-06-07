@@ -1,6 +1,7 @@
 import { DynamoDB } from 'aws-sdk';
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context, APIGatewayProxyEventQueryStringParameters } from 'aws-lambda';
 import { AnyARecord } from 'dns';
+import { QueryInput } from 'aws-sdk/clients/textract';
 
 
 
@@ -93,6 +94,45 @@ const getItemsByCategoryAndTag = async (category: string, tag: string) => {
 
 
 
+//GET ITEMS ORDERED BY UPDATEDAT
+const getItemsOrderedByDate = async (order: string, category: string | null, tag: string | null) => {
+    console.log(`getting items ordered by updatedAt: order: ${order}, category: ${category}, tag: ${tag}`);
+    let params: any = {
+        TableName: process.env.TABLE_NAME!,
+        IndexName: 'dateSort',
+        KeyConditionExpression: '#type = :type',
+        ExpressionAttributeNames: {'#type': 'type'},
+        ExpressionAttributeValues: {':type': '#ITEM'},
+        ScanIndexForward: order === "latest" ? false : true
+    }
+
+    if (category && !tag) {
+        params.FilterExpression = `contains(#category, :category)`,
+        params.KeyConditionExpression = '#type = :type',
+        params.ExpressionAttributeNames = {'#type': 'type', '#category': 'category'},
+        params.ExpressionAttributeValues = {':type': '#ITEM', ':category': category}
+    } 
+    else if (!category && tag) {
+        params.FilterExpression = `contains(#tags, :tag)`,
+        params.KeyConditionExpression = '#type = :type',
+        params.ExpressionAttributeNames = {'#type': 'type', '#tags': 'tags'},
+        params.ExpressionAttributeValues = {':type': '#ITEM', ':tag': tag}
+    }
+    else if (category && tag) {
+        params.FilterExpression = `contains(#tags, :tag) AND #category = :category`,
+        params.KeyConditionExpression = '#type = :type',
+        params.ExpressionAttributeNames = {'#type': 'type', '#tags': 'tags', '#category': 'category'},
+        params.ExpressionAttributeValues = {':type': '#ITEM', ':tag': tag, ':category': category}
+    }
+
+    console.log(`searching with params: `, params);
+    const response = await dynamodb.query(params).promise();
+    console.log('found: ', response);
+    return response.Items;
+}
+
+
+
 
 
 //HANDLER
@@ -108,27 +148,34 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         else {
             let query = event.queryStringParameters;
             console.log('query found: ', query);
+
+            //order by updatedAt
+            if (query.order) {
+                let items = await getItemsOrderedByDate(query.order, query.category ? query.category : null, query.tag ? query.tag : null);
+                result.statusCode = 200; 
+                result.body = JSON.stringify(items);
+            } 
             
             //get items by category
-            if (Object.keys(query).length === 1 && query.category) { 
+            else if (Object.keys(query).length === 1 && query.category) { 
                 let items = await getItemsByCategory(query.category);
                 result.statusCode = 200; 
                 result.body = JSON.stringify(items); 
             }
 
             //get items by tag
-            if (Object.keys(query).length === 1 && query.tag) { 
+            else if (Object.keys(query).length === 1 && query.tag) { 
                 let items = await getItemsByTag(query.tag);
                 result.statusCode = 200; 
                 result.body = JSON.stringify(items); 
             }
 
             //get items by category and tag
-            if (Object.keys(query).length === 2 && query.tag && query.category) { 
+            else if (Object.keys(query).length === 2 && query.tag && query.category) { 
                 let items = await getItemsByCategoryAndTag(query.category, query.tag);
                 result.statusCode = 200; 
                 result.body = JSON.stringify(items); 
-            } 
+            }
 
         }
 
