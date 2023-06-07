@@ -49,6 +49,45 @@ const getItemsByCategory = async (category: string) => {
         ScanIndexForward: true
     }).promise();
 
+    console.log('found: ', response);
+    return response.Items;
+}
+
+
+
+//GET ITEMS BY TAG
+const getItemsByTag = async (tag: string) => {
+    console.log('getting items by tag...');
+    const response = await dynamodb.query({
+        TableName: process.env.TABLE_NAME!,
+        IndexName: 'nameSort',
+        FilterExpression: `contains(#tags, :tag)`,
+        KeyConditionExpression: '#type = :type',
+        ExpressionAttributeNames: {'#type': 'type', '#tags': 'tags'},
+        ExpressionAttributeValues: {':type': '#ITEM', ':tag': tag},
+        ScanIndexForward: true,
+    }).promise();
+
+    console.log('found: ', response);
+    return response.Items;
+}
+
+
+
+//GET ITEMS BY CATEGORY AND TAG
+const getItemsByCategoryAndTag = async (category: string, tag: string) => {
+    console.log('getting items by category AND tag...');
+    const response = await dynamodb.query({
+        TableName: process.env.TABLE_NAME!,
+        IndexName: 'nameSort',
+        KeyConditionExpression: '#type = :type',
+        FilterExpression: `contains(#tags, :tag) AND #category = :category`,
+        ExpressionAttributeNames: {'#type': 'type', '#tags': 'tags', '#category': 'category'},
+        ExpressionAttributeValues: {':type': '#ITEM', ':tag': tag, ':category': category},
+        ScanIndexForward: true,
+    }).promise();
+
+    console.log('found: ', response);
     return response.Items;
 }
 
@@ -73,6 +112,20 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
             //get items by category
             if (Object.keys(query).length === 1 && query.category) { 
                 let items = await getItemsByCategory(query.category);
+                result.statusCode = 200; 
+                result.body = JSON.stringify(items); 
+            }
+
+            //get items by tag
+            if (Object.keys(query).length === 1 && query.tag) { 
+                let items = await getItemsByTag(query.tag);
+                result.statusCode = 200; 
+                result.body = JSON.stringify(items); 
+            }
+
+            //get items by category and tag
+            if (Object.keys(query).length === 2 && query.tag && query.category) { 
+                let items = await getItemsByCategoryAndTag(query.category, query.tag);
                 result.statusCode = 200; 
                 result.body = JSON.stringify(items); 
             } 
