@@ -133,6 +133,25 @@ const getItemsOrderedByDate = async (order: string, category: string | null, tag
 
 
 
+//
+const getItemsWhereNameIncludes = async (namesearch: string) => {
+    console.log(`searching items where name includes ${namesearch}`);
+    const response = await dynamodb.query({
+        TableName: process.env.TABLE_NAME!,
+        IndexName: 'nameSort',
+        FilterExpression: `contains(#namesearch, :namesearch)`,
+        KeyConditionExpression: '#type = :type',
+        ExpressionAttributeNames: {'#type': 'type', '#namesearch': 'namesearch'},
+        ExpressionAttributeValues: {':type': '#ITEM', ':namesearch': namesearch},
+        ScanIndexForward: true,
+    }).promise();
+
+    console.log('found: ', response);
+    return response.Items;
+}
+
+
+
 
 
 //HANDLER
@@ -149,8 +168,15 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
             let query = event.queryStringParameters;
             console.log('query found: ', query);
 
+            //search by name includes (case insensitive)
+            if (query.namesearch) {
+                let items = await getItemsWhereNameIncludes(query.namesearch.toLowerCase());
+                result.statusCode = 200; 
+                result.body = JSON.stringify(items);
+            }
+
             //order by updatedAt
-            if (query.order) {
+            else if (query.order) {
                 let items = await getItemsOrderedByDate(query.order, query.category ? query.category : null, query.tag ? query.tag : null);
                 result.statusCode = 200; 
                 result.body = JSON.stringify(items);

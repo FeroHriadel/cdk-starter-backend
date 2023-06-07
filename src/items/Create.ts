@@ -1,6 +1,7 @@
 import { DynamoDB } from "aws-sdk";
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda";
 import { v4 } from "uuid";
+import { create } from "domain";
 
 const dynamodb = new DynamoDB.DocumentClient();
 
@@ -27,6 +28,7 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         let now = new Date();
         createdItem.createdAt = now.toISOString();
         createdItem.updatedAt = now.toISOString();
+        createdItem.namesearch = createdItem.name.toLowerCase();
         createdItem.type = '#ITEM';
         createdItem.itemId = v4();
         console.log('fields checked: ', createdItem);
