@@ -152,6 +152,18 @@ const getItemsWhereNameIncludes = async (namesearch: string) => {
 
 
 
+//GET ITEM BY ID
+const getItemById = async (itemId: string) => {
+    console.log(`getting item by id ${itemId}...`)
+    let res = await dynamodb.get({TableName: process.env.TABLE_NAME!, Key: {itemId}}).promise();
+    console.log(`Found: `, res);
+    let item = res.Item;
+    if (!item) { result.statusCode = 404; throw new Error('Item not found') };
+    return item;
+}
+
+
+
 
 
 //HANDLER
@@ -168,8 +180,15 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
             let query = event.queryStringParameters;
             console.log('query found: ', query);
 
-            //search by name includes (case insensitive)
-            if (query.namesearch) {
+            //get item by id
+            if (query.item) {
+                let item = await getItemById(query.item);
+                result.statusCode = 200;
+                result.body = JSON.stringify(item);
+            }
+
+            //search items by name (name includes - case insensitive)
+            else if (query.namesearch) {
                 let items = await getItemsWhereNameIncludes(query.namesearch.toLowerCase());
                 result.statusCode = 200; 
                 result.body = JSON.stringify(items);
