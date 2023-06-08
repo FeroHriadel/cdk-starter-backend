@@ -84,7 +84,7 @@ export class ItemLambdas {
 
     private grantTableRights() {
         this.table.grantReadWriteData(this.createLambda); this.categoriesTable.grantReadData(this.createLambda); this.tagsTable.grantReadData(this.createLambda);
-        this.table.grantReadData(this.readLambda);
+        this.table.grantReadData(this.readLambda); this.categoriesTable.grantReadData(this.readLambda); this.tagsTable.grantReadData(this.readLambda);
         this.table.grantReadWriteData(this.updateLambda); this.categoriesTable.grantReadData(this.updateLambda); this.tagsTable.grantReadData(this.updateLambda);
         this.table.grantReadWriteData(this.deleteLambda);
     }

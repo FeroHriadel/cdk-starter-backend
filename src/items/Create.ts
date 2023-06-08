@@ -11,6 +11,12 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
     const result: APIGatewayProxyResult = {statusCode: 500, body: 'Body not created yet', headers: {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Credentials': true}};
 
     try {
+        //check if user signed-in
+        console.log('getting username...');
+        const username = event.requestContext.authorizer!.claims['cognito:username'];
+        console.log('username is: ', username);
+        if (!username) { throw new Error(`You didn't get username right, dummy...`) }
+
         //check body
         console.log('checking body...');
         if (!event.body) throw new Error('No body included');
@@ -31,6 +37,7 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         createdItem.namesearch = createdItem.name.toLowerCase();
         createdItem.type = '#ITEM';
         createdItem.itemId = v4();
+        createdItem.createdBy = username;
         console.log('fields checked: ', createdItem);
 
         //check if category valid

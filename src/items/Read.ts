@@ -2,6 +2,7 @@ import { DynamoDB } from 'aws-sdk';
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context, APIGatewayProxyEventQueryStringParameters } from 'aws-lambda';
 import { AnyARecord } from 'dns';
 import { QueryInput } from 'aws-sdk/clients/textract';
+import { Tag } from 'aws-cdk-lib';
 
 
 
@@ -154,12 +155,44 @@ const getItemsWhereNameIncludes = async (namesearch: string) => {
 
 //GET ITEM BY ID
 const getItemById = async (itemId: string) => {
+    //get item
     console.log(`getting item by id ${itemId}...`)
     let res = await dynamodb.get({TableName: process.env.TABLE_NAME!, Key: {itemId}}).promise();
     console.log(`Found: `, res);
     let item = res.Item;
     if (!item) { result.statusCode = 404; throw new Error('Item not found') };
-    return item;
+
+    //populate category
+    console.log('getting item category...')
+    const catRes = await dynamodb.get({TableName: process.env.CATEGORIES_TABLE!, Key: {categoryId: item.category}}).promise();
+    console.log(`Found: `, catRes);
+    let category = catRes.Item;
+    if (!category) { result.statusCode = 404; throw new Error(`Item's category not found`) }
+    item.category = category;
+
+    //populate tags
+    if (item.tags && item.tags.length > 0) {
+        const getTag = async (tagId: string) => {
+            let tagRes = await dynamodb.get({TableName: process.env.TAGS_TABLE!, Key: {tagId: tagId}}).promise();
+            let tag = tagRes.Item;
+            if (!tag) { result.statusCode = 404; throw new Error(`Item's tag not found`) };
+            return tag;
+        }
+
+        console.log('getting item tags...');
+        let populateTags = () => Promise.all((item!.tags as string[]).map(async t => {return await getTag(t)}))
+        let populatedTags = await populateTags();
+        console.log(`tags: ${populatedTags}`)
+        item!.tags = populatedTags;
+        return item;
+
+    } 
+    
+    else {
+        return item;
+    }
+
+    
 }
 
 
