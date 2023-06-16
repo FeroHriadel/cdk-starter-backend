@@ -1,13 +1,10 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { AuthorizationType, MethodOptions, RestApi, Cors } from "aws-cdk-lib/aws-apigateway";
-import { CfnOutput, RemovalPolicy } from "aws-cdk-lib";
 
 import { imagesBucket } from './buckets/ImagesBucket';
 import { TagsTable } from './tables/TagsTable';
 import { CategoriesTable } from './tables/CategoriesTable';
-// import { ItemsTable } from './tables/ItemsTable';
-// import { CreateItemLambda } from './lambdas/items/createItemLambda';
 import { AppAuthorizer } from './authorizer/AppAuthorizer';
 import { CreateTagLambda } from './lambdas/tags/createTagLambda';
 import { GetTagsLambda } from './lambdas/tags/getTagsLambda';
@@ -18,6 +15,9 @@ import { GetSignedUrlLambda } from './lambdas/getSignedUrl';
 import { CategoryLambdas } from './lambdas/categories/CategoryLambdas';
 import { ItemLambdas } from './lambdas/items/ItemLambdas';
 import { ItemsTable } from './tables/ItemsTable';
+import { EventBridgeSenderLambda } from './lambdas/testing/EventBridgeSender';
+import { EventBridgeSubscriberLambda } from './lambdas/testing/EventBridgeSubscriber';
+import { CdkStarterEventBus } from './eventBus/CdkStarterEventBus';
 
 
 
@@ -65,8 +65,6 @@ export class CdkStarterStack extends cdk.Stack {
     this.imagesBucket.bucket,
     {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'}
   )
-
-  
 
 
 
@@ -135,6 +133,24 @@ export class CdkStarterStack extends cdk.Stack {
     itemsResource.addMethod('PUT', this.itemLambdas.updateLambdaIntegration, optionsWithAuthorizer);
     itemsResource.addMethod('DELETE', this.itemLambdas.deleteLambdaIntegration, optionsWithAuthorizer);
 
+
+
+    //TESTING:
+    const eventBridgeSenderLambdaInitialization = new EventBridgeSenderLambda(this);
+    const eventBridgeSenderLambda = eventBridgeSenderLambdaInitialization.lambda, eventBridgeSenderLambdaIntegration = eventBridgeSenderLambdaInitialization.lambdaIntegration;
+    this.tagsTable.grantReadWriteData(eventBridgeSenderLambda);
+    const eventBridgeSenderResource = this.api.root.addResource('eventbussender');
+    eventBridgeSenderResource.addMethod('POST', eventBridgeSenderLambdaIntegration);
+
+    const eventBridgeSubscriberLambdaInitialization = new EventBridgeSubscriberLambda(this);
+    const eventBridgeSubscriberLambda = eventBridgeSubscriberLambdaInitialization.lambda, eventBridgeSubscriberLambdaIntegration = eventBridgeSubscriberLambdaInitialization.lambdaIntegration;
+    this.tagsTable.grantReadWriteData(eventBridgeSubscriberLambda);
+    const eventBridgeSubscriberResource = this.api.root.addResource('eventbussubscriber');
+    eventBridgeSubscriberResource.addMethod('POST', eventBridgeSubscriberLambdaIntegration);
     
+    const eventBus = new CdkStarterEventBus(this, 'EventBus01', {
+      publisherFunction: eventBridgeSenderLambda,
+      targetFunction: eventBridgeSubscriberLambda
+    })
   }
 }
