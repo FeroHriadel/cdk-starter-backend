@@ -17,7 +17,11 @@ import { ItemLambdas } from './lambdas/items/ItemLambdas';
 import { ItemsTable } from './tables/ItemsTable';
 import { EventBridgeSenderLambda } from './lambdas/testing/EventBridgeSender';
 import { EventBridgeSubscriberLambda } from './lambdas/testing/EventBridgeSubscriber';
-import { CdkStarterEventBus } from './eventBus/CdkStarterEventBus';
+import { CdkStarterEventBus } from './eventBuses/CdkStarterEventBus';
+import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { CdkStarterQueue } from './queue/CdkStarterQueue';
+import { DeleteItemImagesEventBus } from './eventBuses/DeleteItemImagesEventBus';
+import { DeleteItemImagesLambda } from './lambdas/items/DeleteItemImagesLambda';
 
 
 
@@ -38,16 +42,20 @@ export class CdkStarterStack extends cdk.Stack {
     }
   });
 
+
   //S3 BUCKET
   private imagesBucket = new imagesBucket(this);
+
 
   //TABLES
   private tagsTable = new TagsTable(this).table;
   private categoriesTable = new CategoriesTable(this).table;
   private itemsTable = new ItemsTable(this).table;
 
+
   //AUTHORIZER
   private authorizer: AppAuthorizer;
+
 
   //LAMBDAS
     // tagLambdas are in constructor done verbosely for explanation purposes
@@ -57,13 +65,14 @@ export class CdkStarterStack extends cdk.Stack {
     this.imagesBucket.bucket,
     {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'}
   );
+
   private itemLambdas = new ItemLambdas(
     this,
     this.itemsTable,
     this.categoriesTable,
     this.tagsTable,
     this.imagesBucket.bucket,
-    {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'}
+    {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'},
   )
 
 
@@ -77,6 +86,7 @@ export class CdkStarterStack extends cdk.Stack {
       authorizationType: AuthorizationType.COGNITO,
       authorizer: {authorizerId: this.authorizer.authorizer.authorizerId}
     } //attach to lambda like this: createItemLambdaResource.addMethod('POST', createItemLambdaIntegration, optionsWithAuthorizer);
+
 
     //LAMBDAS
       //tags lambdas - verbous for explanation purposes
@@ -133,24 +143,40 @@ export class CdkStarterStack extends cdk.Stack {
     itemsResource.addMethod('PUT', this.itemLambdas.updateLambdaIntegration, optionsWithAuthorizer);
     itemsResource.addMethod('DELETE', this.itemLambdas.deleteLambdaIntegration, optionsWithAuthorizer);
 
+    
+    //EVENT BRIDGE
+      //delete item images - lambda to lamba event bridge
+      const deleteItemImagesLambdaInitialization = new DeleteItemImagesLambda(this, this.imagesBucket.bucket); //subscriber lambda
+      const deleteItemImagesEventBus = new DeleteItemImagesEventBus(this, 'DeleteItemImagesEventBusConstruct', { //event bus
+        publisherFunction: this.itemLambdas.deleteLambda,
+        targetFunction: deleteItemImagesLambdaInitialization.lambda
+      });
 
+    
 
     //TESTING:
+    //when eventBridgeSender is hit it sends a payload to eventBus.
     const eventBridgeSenderLambdaInitialization = new EventBridgeSenderLambda(this);
     const eventBridgeSenderLambda = eventBridgeSenderLambdaInitialization.lambda, eventBridgeSenderLambdaIntegration = eventBridgeSenderLambdaInitialization.lambdaIntegration;
     this.tagsTable.grantReadWriteData(eventBridgeSenderLambda);
     const eventBridgeSenderResource = this.api.root.addResource('eventbussender');
     eventBridgeSenderResource.addMethod('POST', eventBridgeSenderLambdaIntegration);
 
+    //when eventBridgeSubscriber is hit it gets the payload sent by sqs and saves it to tagsTable
     const eventBridgeSubscriberLambdaInitialization = new EventBridgeSubscriberLambda(this);
     const eventBridgeSubscriberLambda = eventBridgeSubscriberLambdaInitialization.lambda, eventBridgeSubscriberLambdaIntegration = eventBridgeSubscriberLambdaInitialization.lambdaIntegration;
     this.tagsTable.grantReadWriteData(eventBridgeSubscriberLambda);
     const eventBridgeSubscriberResource = this.api.root.addResource('eventbussubscriber');
     eventBridgeSubscriberResource.addMethod('POST', eventBridgeSubscriberLambdaIntegration);
+
+    //queue
+    const myQueue = new CdkStarterQueue(this, 'Queue01', eventBridgeSubscriberLambda);
     
+    //this is the eventBus utilizingeventBridgeSender & eventBridgeSubscriber lambdas above 
     const eventBus = new CdkStarterEventBus(this, 'EventBus01', {
       publisherFunction: eventBridgeSenderLambda,
-      targetFunction: eventBridgeSubscriberLambda
+      //targetFunction: eventBridgeSubscriberLambda // if you wanted to send from ev.brdge directly to lambda
+      targetQueue: myQueue.queue
     })
   }
 }
