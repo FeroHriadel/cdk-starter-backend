@@ -22,6 +22,10 @@ import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { CdkStarterQueue } from './queues/CdkStarterQueue';
 import { DeleteItemImagesEventBus } from './eventBuses/DeleteItemImagesEventBus';
 import { DeleteItemImagesLambda } from './lambdas/items/DeleteItemImagesLambda';
+import { BatchDeleteItemsConsumerLambda } from './lambdas/items/BatchDeleteItemsConsumer';
+import { DeleteItemsQueue } from './queues/DeleteItemsQueue';
+import { BatchDeleteItemsPublisherLambda } from './lambdas/items/BatchDeleteItemsPublisher';
+import { BatchDeleteItemsEventBus } from './eventBuses/BatchDeleteItemsEventBus';
 
 
 
@@ -154,10 +158,30 @@ export class CdkStarterStack extends cdk.Stack {
       });
 
       //delete all items with the same category - lambda to queue
-      //queue
-      //lambda - delete many endpoint
-      //lambda - delete many doer
-      //event bus with lambda and queue
+        //frontend trigers publisher lambda
+        //publisher lambda triggers event bus
+        //event bus triggers queue
+        //queue triggers consumer lambda (the one that actually does something)
+
+        //publiser (trigger endpoint for frontend):
+        const batchDeleteItemsPublisherLambdaInitialization = new BatchDeleteItemsPublisherLambda(this);
+        const batchDeleteItemsPublisherLambda = this.api.root.addResource('batchdeleteitems');
+        batchDeleteItemsPublisherLambda.addMethod('GET', batchDeleteItemsPublisherLambdaInitialization.lambdaIntegration);
+
+        //queue consumer lambda (actual doer function):
+        const batchDeleteItemsConsumerLambdaInitialization = new BatchDeleteItemsConsumerLambda(this, this.imagesBucket.bucket);
+        this.itemsTable.grantReadWriteData(batchDeleteItemsConsumerLambdaInitialization.lambda);
+
+        //queue:
+        const deleteItemsQueue = new DeleteItemsQueue(this, 'BatchDeleteItemsQueueConstruct', batchDeleteItemsConsumerLambdaInitialization.lambda);
+
+        //event bus:
+        const batchDeleteItemsEventBus = new BatchDeleteItemsEventBus(this, 'BatchDeleteItemsEventBusConstruct', {
+          publisherFunction: batchDeleteItemsPublisherLambdaInitialization.lambda,
+          targetQueue: deleteItemsQueue.queue
+        });
+
+
 
     
 
