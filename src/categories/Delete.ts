@@ -6,6 +6,29 @@ const s3 = new S3();
 
 
 
+
+
+//GET ITEMS BY CATEGORY
+const getItemsByCategory = async (category: string) => {
+    console.log('getting items by category...')
+    const response = await dynamodb.query({
+        TableName: process.env.ITEMS_TABLE_NAME!,
+        IndexName: 'categorySort',
+        KeyConditionExpression: '#category = :category',
+        ExpressionAttributeNames: {'#category': 'category'},
+        ExpressionAttributeValues: {':category': category},
+        ScanIndexForward: true
+    }).promise();
+
+    console.log('found items: ', response);
+    return response.Items;
+}
+
+
+
+
+
+//HANDLER
 async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
     const result: APIGatewayProxyResult = {
         statusCode: 500, 
@@ -30,20 +53,28 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         category = checkCategory.Item;
         if (!category) { result.statusCode = 404; throw new Error(`Category not found`) }
 
-
-        //delete category (not checking if category exists, speeds the response up a little)
-        await dynamodb.delete({ TableName: process.env.TABLE_NAME!, Key: {categoryId} }).promise();
-        result.statusCode = 200;
-        result.body = JSON.stringify({message: 'Category deleted', ok: true});
-
-        //delete image from s3 if any
-        if (category.image && category.image !== '') {
-            console.log('Deleting image from bucket. Deleting file: ', category.image.split('.com/')[1]);
-            await s3.deleteObject({
-                Bucket: process.env.BUCKET_NAME!, 
-                Key: category.image.split('.com/')[1]
-            }).promise();
+        //check if items with catgegory exist
+        let itemsWithCategory = await getItemsByCategory(categoryId);
+        if (itemsWithCategory && itemsWithCategory.length > 0) {
+            result.statusCode = 403; 
+            throw new Error('Items with this category exist. Cannot delete category.') 
         }
+        else {
+            //delete category
+            await dynamodb.delete({ TableName: process.env.TABLE_NAME!, Key: {categoryId} }).promise();
+            result.statusCode = 200;
+            result.body = JSON.stringify({message: 'Category deleted', ok: true});
+
+            //delete image from s3 if any
+            if (category.image && category.image !== '') {
+                console.log('Deleting image from bucket. Deleting file: ', category.image.split('.com/')[1]);
+                await s3.deleteObject({
+                    Bucket: process.env.BUCKET_NAME!, 
+                    Key: category.image.split('.com/')[1]
+                }).promise();
+            }
+        }
+        
         
     } catch (error) {
         console.error(error);

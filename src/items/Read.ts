@@ -134,7 +134,7 @@ const getItemsOrderedByDate = async (order: string, category: string | null, tag
 
 
 
-//
+//NAME INCLUDES SEARCH
 const getItemsWhereNameIncludes = async (namesearch: string) => {
     console.log(`searching items where name includes ${namesearch}`);
     const response = await dynamodb.query({

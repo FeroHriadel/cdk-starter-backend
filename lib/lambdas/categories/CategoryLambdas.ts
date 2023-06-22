@@ -17,6 +17,7 @@ export class CategoryLambdas {
 
     private stack: Stack;
     private table: Table;
+    private itemsTable: Table;
     private bucket: Bucket;
     private lambdasPaths: LambdasPaths;
 
@@ -32,9 +33,10 @@ export class CategoryLambdas {
 
 
 
-    constructor(stack: Stack, table: Table, bucket: Bucket, lambdaPaths: LambdasPaths) {
+    constructor(stack: Stack, table: Table, itemsTable: Table, bucket: Bucket, lambdaPaths: LambdasPaths) {
         this.stack = stack;
         this.table = table;
+        this.itemsTable = itemsTable;
         this.bucket = bucket;
         this.lambdasPaths = lambdaPaths;
         this.initialize();
@@ -55,6 +57,7 @@ export class CategoryLambdas {
             functionName: lambdaId,
             environment: {
                 TABLE_NAME: this.table.tableName,
+                ITEMS_TABLE_NAME: this.itemsTable.tableName,
                 PRIMARY_KEY: 'categoryId',
                 BUCKET_NAME: this.bucket.bucketName
             }
@@ -80,7 +83,7 @@ export class CategoryLambdas {
         this.table.grantReadWriteData(this.createLambda);
         this.table.grantReadData(this.readLambda);
         this.table.grantReadWriteData(this.updateLambda);
-        this.table.grantReadWriteData(this.deleteLambda);
+        this.table.grantReadWriteData(this.deleteLambda); this.itemsTable.grantReadData(this.deleteLambda);
     }
 
 }

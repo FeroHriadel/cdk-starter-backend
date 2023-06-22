@@ -19,7 +19,7 @@ import { EventBridgeSenderLambda } from './lambdas/testing/EventBridgeSender';
 import { EventBridgeSubscriberLambda } from './lambdas/testing/EventBridgeSubscriber';
 import { CdkStarterEventBus } from './eventBuses/CdkStarterEventBus';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
-import { CdkStarterQueue } from './queue/CdkStarterQueue';
+import { CdkStarterQueue } from './queues/CdkStarterQueue';
 import { DeleteItemImagesEventBus } from './eventBuses/DeleteItemImagesEventBus';
 import { DeleteItemImagesLambda } from './lambdas/items/DeleteItemImagesLambda';
 
@@ -62,6 +62,7 @@ export class CdkStarterStack extends cdk.Stack {
   private categoryLambdas = new CategoryLambdas(
     this,
     this.categoriesTable,
+    this.itemsTable,
     this.imagesBucket.bucket,
     {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'}
   );
@@ -118,7 +119,7 @@ export class CdkStarterStack extends cdk.Stack {
 
     const deleteTagLambdaInitialization = new DeleteTagLambda(this);
     const deleteTagLambda = deleteTagLambdaInitialization.lambda, deleteTagLambdaIntegration = deleteTagLambdaInitialization.lambdaIntegration;
-    this.tagsTable.grantReadWriteData(deleteTagLambda);
+    this.tagsTable.grantReadWriteData(deleteTagLambda); this.itemsTable.grantReadData(deleteTagLambda);
     const deleteTagLambdaResource = this.api.root.addResource('deletetag');
     const deleteTagResourceWithParams = deleteTagLambdaResource.addResource('{tagId}');
     deleteTagResourceWithParams.addMethod('DELETE', deleteTagLambdaIntegration, optionsWithAuthorizer);
@@ -151,6 +152,12 @@ export class CdkStarterStack extends cdk.Stack {
         publisherFunction: this.itemLambdas.deleteLambda,
         targetFunction: deleteItemImagesLambdaInitialization.lambda
       });
+
+      //delete all items with the same category - lambda to queue
+      //queue
+      //lambda - delete many endpoint
+      //lambda - delete many doer
+      //event bus with lambda and queue
 
     
 

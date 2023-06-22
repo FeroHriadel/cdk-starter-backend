@@ -28,6 +28,7 @@ export class DeleteTagLambda {
             functionName: 'DeleteTagLambda',
             environment: {
                 TABLE_NAME: 'TagsTable',
+                ITEMS_TABLE_NAME: 'ItemsTable',
                 PRIMARY_KEY: 'tagId'
             }
         })
