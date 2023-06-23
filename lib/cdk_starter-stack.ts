@@ -15,11 +15,6 @@ import { GetSignedUrlLambda } from './lambdas/getSignedUrl';
 import { CategoryLambdas } from './lambdas/categories/CategoryLambdas';
 import { ItemLambdas } from './lambdas/items/ItemLambdas';
 import { ItemsTable } from './tables/ItemsTable';
-import { EventBridgeSenderLambda } from './lambdas/testing/EventBridgeSender';
-import { EventBridgeSubscriberLambda } from './lambdas/testing/EventBridgeSubscriber';
-import { CdkStarterEventBus } from './eventBuses/CdkStarterEventBus';
-import { Queue } from 'aws-cdk-lib/aws-sqs';
-import { CdkStarterQueue } from './queues/CdkStarterQueue';
 import { DeleteItemImagesEventBus } from './eventBuses/DeleteItemImagesEventBus';
 import { DeleteItemImagesLambda } from './lambdas/items/DeleteItemImagesLambda';
 import { BatchDeleteItemsConsumerLambda } from './lambdas/items/BatchDeleteItemsConsumer';
@@ -150,14 +145,14 @@ export class CdkStarterStack extends cdk.Stack {
 
     
     //EVENT BRIDGE
-      //delete item images - lambda to lamba event bridge
+      /************* delete item images - LAMBDA TO LAMBDA EVENT BRIDGE ***/
       const deleteItemImagesLambdaInitialization = new DeleteItemImagesLambda(this, this.imagesBucket.bucket); //subscriber lambda
       const deleteItemImagesEventBus = new DeleteItemImagesEventBus(this, 'DeleteItemImagesEventBusConstruct', { //event bus
         publisherFunction: this.itemLambdas.deleteLambda,
         targetFunction: deleteItemImagesLambdaInitialization.lambda
       });
 
-      //delete all items with the same category - lambda to queue
+      /************* delete all items with the same category - LAMBDA TO QUEUE EVENT BRIDGE ***/
         //frontend trigers publisher lambda
         //publisher lambda triggers event bus
         //event bus triggers queue
@@ -181,33 +176,5 @@ export class CdkStarterStack extends cdk.Stack {
           targetQueue: deleteItemsQueue.queue
         });
 
-
-
-    
-
-    //TESTING:
-    //when eventBridgeSender is hit it sends a payload to eventBus.
-    const eventBridgeSenderLambdaInitialization = new EventBridgeSenderLambda(this);
-    const eventBridgeSenderLambda = eventBridgeSenderLambdaInitialization.lambda, eventBridgeSenderLambdaIntegration = eventBridgeSenderLambdaInitialization.lambdaIntegration;
-    this.tagsTable.grantReadWriteData(eventBridgeSenderLambda);
-    const eventBridgeSenderResource = this.api.root.addResource('eventbussender');
-    eventBridgeSenderResource.addMethod('POST', eventBridgeSenderLambdaIntegration);
-
-    //when eventBridgeSubscriber is hit it gets the payload sent by sqs and saves it to tagsTable
-    const eventBridgeSubscriberLambdaInitialization = new EventBridgeSubscriberLambda(this);
-    const eventBridgeSubscriberLambda = eventBridgeSubscriberLambdaInitialization.lambda, eventBridgeSubscriberLambdaIntegration = eventBridgeSubscriberLambdaInitialization.lambdaIntegration;
-    this.tagsTable.grantReadWriteData(eventBridgeSubscriberLambda);
-    const eventBridgeSubscriberResource = this.api.root.addResource('eventbussubscriber');
-    eventBridgeSubscriberResource.addMethod('POST', eventBridgeSubscriberLambdaIntegration);
-
-    //queue
-    const myQueue = new CdkStarterQueue(this, 'Queue01', eventBridgeSubscriberLambda);
-    
-    //this is the eventBus utilizingeventBridgeSender & eventBridgeSubscriber lambdas above 
-    const eventBus = new CdkStarterEventBus(this, 'EventBus01', {
-      publisherFunction: eventBridgeSenderLambda,
-      //targetFunction: eventBridgeSubscriberLambda // if you wanted to send from ev.brdge directly to lambda
-      targetQueue: myQueue.queue
-    })
   }
 }
