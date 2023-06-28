@@ -7,15 +7,13 @@ import { join } from "path";
 
 
 
-export class GetSignedUrlLambda {
+export class GetS3ObjectLambda {
 
     private stack: Stack;
     private bucket: Bucket;
     private bucketAccessPolicyStatement: PolicyStatement;
     public lambda: NodejsFunction;
     public lambdaIntegration: LambdaIntegration;
-
-
 
     public constructor(stack: Stack, bucket: Bucket, bucketAccessPolicyStatement: PolicyStatement) {
         this.stack = stack;
@@ -31,10 +29,10 @@ export class GetSignedUrlLambda {
     }
 
     private createLambda() {
-        this.lambda = new NodejsFunction(this.stack, 'GetSignedUrlLambda', {
-            entry: (join(__dirname, '..', '..', 'src', 'getSignedUrl.ts')),
+        this.lambda = new NodejsFunction(this.stack, 'GetS3ObjectLambda', {
+            entry: (join(__dirname, '..', '..', 'src', 'getS3Object.ts')),
             handler: 'handler',
-            functionName: 'GetSignedUrlLambda',
+            functionName: 'GetS3ObjectLambda',
             environment: {
                 BUCKET_NAME: this.bucket.bucketName
             },
@@ -44,7 +42,7 @@ export class GetSignedUrlLambda {
     
     private addRole() {
         this.lambda.role?.attachInlinePolicy(
-            new Policy(this.stack, 'GetSignedUrlBucketAccess', {
+            new Policy(this.stack, 'GetS3ObjectBucketAccess', {
                 statements: [this.bucketAccessPolicyStatement],
               }
             )

@@ -1,6 +1,7 @@
 import { Stack } from "aws-cdk-lib";
 import { LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
+import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { join } from "path";
@@ -20,6 +21,7 @@ export class CategoryLambdas {
     private itemsTable: Table;
     private bucket: Bucket;
     private lambdasPaths: LambdasPaths;
+    private bucketAccessPolicyStatement: PolicyStatement;
 
     public createLambda: NodejsFunction;
     public readLambda: NodejsFunction;
@@ -33,12 +35,13 @@ export class CategoryLambdas {
 
 
 
-    constructor(stack: Stack, table: Table, itemsTable: Table, bucket: Bucket, lambdaPaths: LambdasPaths) {
+    constructor(stack: Stack, table: Table, itemsTable: Table, bucket: Bucket, lambdaPaths: LambdasPaths, bucketAccessPolicyStatement: PolicyStatement) {
         this.stack = stack;
         this.table = table;
         this.itemsTable = itemsTable;
         this.bucket = bucket;
         this.lambdasPaths = lambdaPaths;
+        this.bucketAccessPolicyStatement = bucketAccessPolicyStatement;
         this.initialize();
     }
 
@@ -47,6 +50,7 @@ export class CategoryLambdas {
     private initialize() {
         this.createLambdas();
         this.grantTableRights();
+        this.grantBucketRights();
     }
 
     private createSingleLambda(handlerPath: string) {
@@ -84,6 +88,17 @@ export class CategoryLambdas {
         this.table.grantReadData(this.readLambda);
         this.table.grantReadWriteData(this.updateLambda);
         this.table.grantReadWriteData(this.deleteLambda); this.itemsTable.grantReadData(this.deleteLambda);
+    }
+
+    private grantBucketRights() {
+        //delete lambda deletes category image
+        this.deleteLambda.role?.attachInlinePolicy(
+            new Policy(this.stack, 'DeleteCategoryLambdaBucketAccess', {statements: [this.bucketAccessPolicyStatement]})
+        )
+        //update lambda deletes replaced category image
+        this.updateLambda.role?.attachInlinePolicy(
+            new Policy(this.stack, 'UpdateCategoryLambdaBucketAccess', {statements: [this.bucketAccessPolicyStatement]})
+        )
     }
 
 }

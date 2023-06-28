@@ -19,14 +19,14 @@ export class imagesBucket {
 
     private initialize() {
         this.createBucket();
-        this.createBucketPolicy();
+        // this.createBucketPolicy();
     }
 
     private createBucket() {
         this.bucket = new Bucket(this.stack, 'cdk-starter-images-bucket', {
             bucketName: 'cdk-starter-images-bucket-fero', //bucket name cannot have upper case characters
             objectOwnership: ObjectOwnership.BUCKET_OWNER_PREFERRED, //enables ACLs (else image upload from website fails)
-            blockPublicAccess: {blockPublicAcls: false, ignorePublicAcls: false, blockPublicPolicy: false, restrictPublicBuckets: false}, //enables adding bucket policy from cdk
+            //blockPublicAccess: {blockPublicAcls: false, ignorePublicAcls: false, blockPublicPolicy: false, restrictPublicBuckets: false}, //enables adding bucket policy from cdk
             cors: [{
               allowedMethods: [
                   HttpMethods.HEAD,
@@ -42,21 +42,21 @@ export class imagesBucket {
           });
     }
 
-    private createBucketPolicy() {
-        this.bucketPolicy = new BucketPolicy(this.stack, 'cdk-starter-bucket-policy', {bucket: this.bucket});
-        this.bucketPolicy.document.addStatements(
-            new PolicyStatement({
-                resources: [this.bucket.bucketArn + '/*'],
-                actions: [
-                    's3:GetObject',
-                    's3:PutObject',
-                    's3:PutObjectAcl',
-                    's3:DeleteObject'
-                ],
-                effect: Effect.ALLOW,
-                principals: [new AnyPrincipal()]
-            })
-        )
-    }
+    // private createBucketPolicy() {
+    //     this.bucketPolicy = new BucketPolicy(this.stack, 'cdk-starter-bucket-policy', {bucket: this.bucket});
+    //     this.bucketPolicy.document.addStatements(
+    //         new PolicyStatement({
+    //             resources: [this.bucket.bucketArn + '/*'],
+    //             actions: [
+    //                 's3:GetObject',
+    //                 's3:PutObject',
+    //                 's3:PutObjectAcl',
+    //                 's3:DeleteObject'
+    //             ],
+    //             effect: Effect.ALLOW,
+    //             principals: [new AnyPrincipal()]
+    //         })
+    //     )
+    // }
 
 }

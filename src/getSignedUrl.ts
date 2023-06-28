@@ -35,8 +35,8 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
             Bucket,
             Key,
             Expires,
-            ContentType: 'image/png',
-            ACL: 'public-read'
+            ContentType: 'image/png'
+            // ACL: 'public-read'
         });
 
         if (!url || typeof url !== 'string' || !url.includes('https://')) throw new Error('Generating signed url failed');

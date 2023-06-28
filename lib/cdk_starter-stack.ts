@@ -21,6 +21,9 @@ import { BatchDeleteItemsConsumerLambda } from './lambdas/items/BatchDeleteItems
 import { DeleteItemsQueue } from './queues/DeleteItemsQueue';
 import { BatchDeleteItemsPublisherLambda } from './lambdas/items/BatchDeleteItemsPublisher';
 import { BatchDeleteItemsEventBus } from './eventBuses/BatchDeleteItemsEventBus';
+import { GetS3ObjectLambda } from './lambdas/getS3Object';
+import { BucketAccessPolicyStatement } from './policies/BucketAccessPolicyStatement';
+import { Policy } from 'aws-cdk-lib/aws-iam';
 
 
 
@@ -41,9 +44,12 @@ export class CdkStarterStack extends cdk.Stack {
     }
   });
 
-
   //S3 BUCKET
   private imagesBucket = new imagesBucket(this);
+
+
+  //POLICY STATEMENTS
+  private bucketAccessPolicyStatement = new BucketAccessPolicyStatement(this.imagesBucket.bucket).policyStatement;
 
 
   //TABLES
@@ -63,7 +69,8 @@ export class CdkStarterStack extends cdk.Stack {
     this.categoriesTable,
     this.itemsTable,
     this.imagesBucket.bucket,
-    {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'}
+    {createPath: 'Create', readPath: 'Read', updatePath: 'Update', deletePath: 'Delete'},
+    this.bucketAccessPolicyStatement
   );
 
   private itemLambdas = new ItemLambdas(
@@ -123,11 +130,17 @@ export class CdkStarterStack extends cdk.Stack {
     const deleteTagResourceWithParams = deleteTagLambdaResource.addResource('{tagId}');
     deleteTagResourceWithParams.addMethod('DELETE', deleteTagLambdaIntegration, optionsWithAuthorizer);
 
-    //get signed url lambda
-    const getSignedUrlLambdaInitialization = new GetSignedUrlLambda(this, this.imagesBucket.bucket);
+    //get signed url lambda (upload signed url)
+    const getSignedUrlLambdaInitialization = new GetSignedUrlLambda(this, this.imagesBucket.bucket, this.bucketAccessPolicyStatement);
     const getSignedUrlIntegration = getSignedUrlLambdaInitialization.lambdaIntegration;
     const getSignedUrlResource = this.api.root.addResource('getsignedurl');
     getSignedUrlResource.addMethod('POST', getSignedUrlIntegration, optionsWithAuthorizer);
+
+    //get s3 object lambda (download signed url)
+    const getS3ObjectLambdaInitialization = new GetS3ObjectLambda(this, this.imagesBucket.bucket, this.bucketAccessPolicyStatement);
+    const getS3ObjectLambdaIntegration = getS3ObjectLambdaInitialization.lambdaIntegration;
+    const getS3ObjectResource = this.api.root.addResource('gets3object');
+    getS3ObjectResource.addMethod('POST', getS3ObjectLambdaIntegration);
 
     //categories lambdas - how big boys do it (less flexible but concise)
     const categoriesResource = this.api.root.addResource('categories');
@@ -144,37 +157,47 @@ export class CdkStarterStack extends cdk.Stack {
     itemsResource.addMethod('DELETE', this.itemLambdas.deleteLambdaIntegration, optionsWithAuthorizer);
 
     
-    //EVENT BRIDGE
-      /************* delete item images - LAMBDA TO LAMBDA EVENT BRIDGE ***/
-      const deleteItemImagesLambdaInitialization = new DeleteItemImagesLambda(this, this.imagesBucket.bucket); //subscriber lambda
-      const deleteItemImagesEventBus = new DeleteItemImagesEventBus(this, 'DeleteItemImagesEventBusConstruct', { //event bus
-        publisherFunction: this.itemLambdas.deleteLambda,
-        targetFunction: deleteItemImagesLambdaInitialization.lambda
-      });
+    //EVENT BRIDGE - LAMBDA TO LAMBDA
+    //user deletes item (items/deleteLambda above)
+    //delete item lambda pings EventBus (sending it list of item images to delete)
+    //EventBus pings deleteItemImagesLambda relaying the list of images to delete
+    //deleteItemImagesLambda deletes the images from bucket
+    const deleteItemImagesLambdaInitialization = new DeleteItemImagesLambda(this, this.imagesBucket.bucket); //subscriber lambda
+    const deleteItemImagesEventBus = new DeleteItemImagesEventBus(this, 'DeleteItemImagesEventBusConstruct', { //event bus
+      publisherFunction: this.itemLambdas.deleteLambda,
+      targetFunction: deleteItemImagesLambdaInitialization.lambda
+    });
+    deleteItemImagesLambdaInitialization.lambda.role?.attachInlinePolicy(
+      new Policy(this, 'DeleteItemImagesLambdaBucketAccess', {statements: [this.bucketAccessPolicyStatement]})
+    );
 
-      /************* delete all items with the same category - LAMBDA TO QUEUE EVENT BRIDGE ***/
-        //frontend trigers publisher lambda
-        //publisher lambda triggers event bus
-        //event bus triggers queue
-        //queue triggers consumer lambda (the one that actually does something)
 
-        //publiser (trigger endpoint for frontend):
-        const batchDeleteItemsPublisherLambdaInitialization = new BatchDeleteItemsPublisherLambda(this);
-        const batchDeleteItemsPublisherLambda = this.api.root.addResource('batchdeleteitems');
-        batchDeleteItemsPublisherLambda.addMethod('GET', batchDeleteItemsPublisherLambdaInitialization.lambdaIntegration);
+    //EVENT BRIDGE - LAMBDA TO SQS
+    //frontend trigers publisher lambda (sends categoryId)
+    //publisher lambda triggers event bus (passes on categoryId)
+    //event bus triggers queue (passes on categoryId)
+    //queue triggers consumer lambda (the one that actually does something) (batch deletes all items within category and their images)
 
-        //queue consumer lambda (actual doer function):
-        const batchDeleteItemsConsumerLambdaInitialization = new BatchDeleteItemsConsumerLambda(this, this.imagesBucket.bucket);
-        this.itemsTable.grantReadWriteData(batchDeleteItemsConsumerLambdaInitialization.lambda);
+    //publiser (trigger endpoint for frontend):
+    const batchDeleteItemsPublisherLambdaInitialization = new BatchDeleteItemsPublisherLambda(this);
+    const batchDeleteItemsPublisherLambda = this.api.root.addResource('batchdeleteitems');
+    batchDeleteItemsPublisherLambda.addMethod('GET', batchDeleteItemsPublisherLambdaInitialization.lambdaIntegration, optionsWithAuthorizer);
 
-        //queue:
-        const deleteItemsQueue = new DeleteItemsQueue(this, 'BatchDeleteItemsQueueConstruct', batchDeleteItemsConsumerLambdaInitialization.lambda);
+    //queue consumer lambda (actual doer function):
+    const batchDeleteItemsConsumerLambdaInitialization = new BatchDeleteItemsConsumerLambda(this, this.imagesBucket.bucket);
+    this.itemsTable.grantReadWriteData(batchDeleteItemsConsumerLambdaInitialization.lambda);
+    batchDeleteItemsConsumerLambdaInitialization.lambda.role?.attachInlinePolicy(
+      new Policy(this, 'BatchDeleteItemsLambdaBucketAccess', {statements: [this.bucketAccessPolicyStatement]})
+    );
 
-        //event bus:
-        const batchDeleteItemsEventBus = new BatchDeleteItemsEventBus(this, 'BatchDeleteItemsEventBusConstruct', {
-          publisherFunction: batchDeleteItemsPublisherLambdaInitialization.lambda,
-          targetQueue: deleteItemsQueue.queue
-        });
+    //queue:
+    const deleteItemsQueue = new DeleteItemsQueue(this, 'BatchDeleteItemsQueueConstruct', batchDeleteItemsConsumerLambdaInitialization.lambda);
+
+    //event bus:
+    const batchDeleteItemsEventBus = new BatchDeleteItemsEventBus(this, 'BatchDeleteItemsEventBusConstruct', {
+      publisherFunction: batchDeleteItemsPublisherLambdaInitialization.lambda,
+      targetQueue: deleteItemsQueue.queue
+    });
 
   }
 }

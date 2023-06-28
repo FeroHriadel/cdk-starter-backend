@@ -13,8 +13,13 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
     };
 
     try {
-        //get categoryId
+        //check if admin
         console.log('Lambda started running...');
+        const isAdmin = event.requestContext.authorizer?.claims['cognito:groups'] === 'admins';
+        console.log('is user admin: ', isAdmin);
+        if (!isAdmin) { result.statusCode = 401; throw new Error('Only admins can create tags'); }
+
+        //get categoryId
         console.log('Getting categoryId...');
         console.log(event);
         const categoryId = event.queryStringParameters?.categoryId;
