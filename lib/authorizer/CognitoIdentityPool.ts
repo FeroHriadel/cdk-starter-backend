@@ -8,6 +8,20 @@ import { Construct } from "constructs";
 
 export class CognitoIdentityPool {
 
+    /*
+        To implement authorizer with roles (public, signed-in, admins) you have to:
+            1) create UserPool (and a Client for it)
+            2) attach an authorizer to api and put UserPool (and its Client) to it
+            3) define what roles you want => that is: create IdentityPool
+        
+        This is the IdentityPool we will add to our api authorizer once it's initialized in AppAuthorizer.ts
+        It:
+            a) creates IdentityPool
+            b) creates roles ('authenticated' or 'unauthenticated')
+            c) attaches policies (privileges) to roles (e.g.: adminRole can do bucket operations...)
+            d) attaches roles to UserPool
+    */
+
     private scope: Construct;
     private userPool: UserPool;
     private userPoolClient: UserPoolClient;
@@ -28,9 +42,9 @@ export class CognitoIdentityPool {
 
 
     private initialize() {
-        this.initializeIdentityPool();
-        this.initializeRoles();
-        this.attachRoles();
+        this.initializeIdentityPool(); //creates IdentityPool 
+        this.initializeRoles(); //creates roles for IdentityPool ('authenticated' or 'unauthenticated' and can grant different roles different privileges (policies))
+        this.attachRoles(); //attaches the roles above to UserPool
     }
 
     private initializeIdentityPool() {
@@ -74,6 +88,8 @@ export class CognitoIdentityPool {
                 }
             }, 'sts:AssumeRoleWithWebIdentity')
         });
+
+        //here you can say what you want `admins` to be able to do (I use this one here for demonstration purposes)
         this.adminRole.addToPolicy(new PolicyStatement({
             effect: Effect.ALLOW,
             actions: ['s3:ListAllMyBuckets'],
