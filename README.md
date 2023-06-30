@@ -16,3 +16,5 @@ The frontend to this is at: https://github.com/FeroHriadel/cdkstarterfrontend.gi
 * (more) advanced dynamoDB operations
 * EventBridge
 * SQS
+* Batch Delete from S3 Bucket
+* DynamoDB Batch Write
