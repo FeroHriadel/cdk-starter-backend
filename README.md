@@ -1,14 +1,18 @@
-# Welcome to your CDK TypeScript project
+# CDK STARTER BACKEND
 
-This is a blank project for CDK development with TypeScript.
+This is an aws-cdk (typescript) cook book.
+The frontend to this is at: https://github.com/FeroHriadel/cdkstarterfrontend.git
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
-## Useful commands
+## Shows how to:
 
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `cdk deploy`      deploy this stack to your default AWS account/region
-* `cdk diff`        compare deployed stack with current state
-* `cdk synth`       emits the synthesized CloudFormation template
+* apiGateway with cors
+* PolicyStatements
+* Private S3 Bucket
+* Presigned urls to upload/download from private bucket
+* lambdas simply (tagLambdas) & lamdas elegantly (all other lambdas)
+* dynamoDB tables
+* dynamoDB composite keys (PK and SK)
+* (more) advanced dynamoDB operations
+* EventBridge
+* SQS
