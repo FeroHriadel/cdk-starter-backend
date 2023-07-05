@@ -24,6 +24,7 @@ import { BatchDeleteItemsEventBus } from './eventBuses/BatchDeleteItemsEventBus'
 import { GetS3ObjectLambda } from './lambdas/getS3Object';
 import { BucketAccessPolicyStatement } from './policies/BucketAccessPolicyStatement';
 import { Policy } from 'aws-cdk-lib/aws-iam';
+import { UiDeployment } from './uiDeployment/UiDeployment';
 
 
 
@@ -198,6 +199,12 @@ export class CdkStarterStack extends cdk.Stack {
       publisherFunction: batchDeleteItemsPublisherLambdaInitialization.lambda,
       targetQueue: deleteItemsQueue.queue
     });
+
+
+
+    //DEPLOY UI
+    /* go to ur react app, run `npm run build` then come back here and run `cdk deploy` */
+    new UiDeployment(this);
 
   }
 }

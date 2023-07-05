@@ -21,7 +21,7 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         console.log('checking body...');
         if (!event.body) throw new Error('No body included');
         const createdItem = JSON.parse(event.body);
-        console.log(`body is: ${createdItem}`);
+        console.log(`body is: `, createdItem);
 
         //check required fields
         console.log('checking required fields...');

@@ -31,6 +31,7 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         if (!event.body) { result.statusCode = 400; throw new Error('No body included'); }
         const body = JSON.parse(event.body);
         if (!body.name || typeof body.name !== 'string' || !body.name.length) { result.statusCode = 400; throw new Error('Category name (string) is required');}
+        console.log('Attributes: ', body);
 
         //if category with same name exists return
         console.log('Checking if name is unique...');
@@ -63,6 +64,7 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         };
 
         //save tag
+        console.log('Saving category with params: ', category);
         const savedCategory = await dynamodb.put({TableName: process.env.TABLE_NAME!, Item: category}).promise();
         if (!savedCategory) throw new Error('Category failed to save');
         result.body = JSON.stringify(category); result.statusCode = 201;

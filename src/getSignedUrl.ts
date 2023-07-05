@@ -19,18 +19,20 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         //get fileName from body
         if (!event.body) { result.statusCode === 400; throw new Error('No request body found') };
         const body = JSON.parse(event.body);
-        const { fileName } = body;
+        let { fileName } = body;
         if (!fileName) { result.statusCode === 400; throw new Error('No fileName included in request') };
+        console.log('fileName: ', fileName);
 
         //create variables for getSignedUrl request
         console.log('checks passed, creating variables...')
-        const randomString = (Math.random() * 100000).toFixed(0).toString();
+        let randomString = (Math.random() * 100000).toFixed(0).toString();
+        fileName = fileName.split(' ').join(''); //remove empty spaces or you will have a problem with `%` later
         const Key = `${fileName}${randomString}.png`;
         const Bucket = process.env.BUCKET_NAME!;
         const Expires = 300; //5 minutes
 
         //get signed url from AWS
-        console.log('getting signed url...')
+        console.log('getting signed url with params: ', {Bucket, Key, Expires, ContentType: 'image/png'})
         const url = await s3.getSignedUrlPromise('putObject', {
             Bucket,
             Key,
@@ -42,7 +44,8 @@ async function handler(event: APIGatewayProxyEvent, context: Context): Promise<A
         if (!url || typeof url !== 'string' || !url.includes('https://')) throw new Error('Generating signed url failed');
         
         result.statusCode = 200;
-        result.body = JSON.stringify({url})
+        result.body = JSON.stringify({url});
+        console.log('Got url: ', url);
 
     } catch (error) {
         console.error(error);
