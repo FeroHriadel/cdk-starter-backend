@@ -18,3 +18,4 @@ The frontend to this is at: https://github.com/FeroHriadel/cdkstarterfrontend.gi
 * SQS
 * Batch Delete from S3 Bucket
 * DynamoDB Batch Write
+* Deploy frontend to CloudFront
